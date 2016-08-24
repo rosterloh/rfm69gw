@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <title></title>
+        <meta charset="utf-8" />
+        <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="pure-min.css" />
+        <link rel="stylesheet" href="side-menu-min.css" />
+        <link rel="stylesheet" href="grids-responsive-min.css" />
+        <script src="jquery-1.12.3.min.js"></script>
+
+        <style>
+            #menu .pure-menu-heading {
+                font-size: 100%;
+                padding: .5em .5em;
+            }
+            .header h2 {
+                font-size: 1em;
+            }
+            .panel  {
+                display: none;
+            }
+            .content {
+                margin: 0px;
+            }
+            .page {
+                margin-top: 40px;
+            }
+            .center {
+                text-align: center;
+            }
+            .pure-button {
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+            }
+            .button-update {
+                width: 100px;
+                margin: 50px auto;
+                background: rgb(66, 184, 221);
+            }
+            .button-add {
+                margin-top: 5px;
+                background: rgb(28, 184, 65);
+            }
+            .button-del {
+                margin-top: 5px;
+                background: rgb(202, 60, 60);
+            }
+            .pure-g {
+                margin-bottom: 20px;
+            }
+            legend {
+                font-weight: bold;
+            }
+            .l-box {
+                padding-right: 1px;
+            }
+            #topics .pure-g {
+                padding-bottom: 5px;
+                margin-bottom: 5px;
+                border-bottom: 1px dashed #e5e5e5;
+            }
+            .pure-form input[type=text][disabled] {
+                color: #777777;
+            }
+            div.hint {
+                font-size: 80%;
+                color: #ccc;
+                margin-top: -10px;
+            }
+            #template {
+                display: none;
+            }
+        </style>
+
+        <script>
+
+            var tabindex = $("#mapping > div").length * 3 + 33;
+
+            function doUpdate() {
+                var self = $(this);
+                self.addClass("loading");
+                $.ajax({
+                    'method': 'POST',
+                    'url': '/post',
+                    'dataType': 'json',
+                    'data': $("#formSave").serializeArray()
+                }).done(function(data) {
+                    self.removeClass("loading");
+                }).fail(function() {
+                    self.removeClass("loading");
+                });
+            }
+
+            function showPanel() {
+                $(".panel").hide();
+                $("#" + $(this).attr("data")).show();
+                if ($("#layout").hasClass('active')) toggleMenu();
+            };
+
+            function addMapping() {
+                var template = $("#template .pure-g")[0];
+                var line = $(template).clone();
+                $(line).find("input").each(function() {
+                    $(this).attr("tabindex", tabindex++);
+                });
+                $(line).find("button").on('click', delMapping);
+                line.appendTo("#mapping");
+            }
+
+            function delMapping() {
+                var parent = $(this).parent().parent();
+                $(parent).remove();
+            }
+
+            function toggleMenu() {
+                $("#layout").toggleClass('active');
+                $("#menu").toggleClass('active');
+                $("#menuLink").toggleClass('active');
+            }
+
+            function init() {
+                $.ajax({
+                    'method': 'GET',
+                    'url': '/get',
+                    'dataType': 'json'
+                }).done(function(data) {
+
+                    // pre-process
+                    data.network = data.network.toUpperCase();
+                    data.mqttStatus = data.mqttStatus ? "CONNECTED" : "NOT CONNECTED";
+
+                    // title
+                    document.title = data.app;
+                    $(".pure-menu-heading").html(data.app);
+
+                    // automatic assign
+                    Object.keys(data).forEach(function(key) {
+                        var id = "input[name=" + key + "]";
+                        if ($(id).length) $(id).val(data[key]);
+                    });
+
+                    // WIFI
+                    var groups = $("#panel-wifi .pure-g");
+                    for (var i in data.wifi) {
+                        var wifi = data.wifi[i];
+                        Object.keys(wifi).forEach(function(key) {
+                            var id = "input[name=" + key + "]";
+                            if ($(id, groups[i]).length) $(id, groups[i]).val(wifi[key]);
+                        });
+                    };
+
+                    // TOPICS
+                    for (var i in data.mapping) {
+
+                        // add a new row
+                        addMapping();
+
+                        // get group
+                        var line = $("#mapping .pure-g")[i];
+
+                        // fill in the blanks
+                        var mapping = data.mapping[i];
+                        Object.keys(mapping).forEach(function(key) {
+                            var id = "input[name=" + key + "]";
+                            if ($(id, line).length) $(id, line).val(mapping[key]);
+                        });
+
+                    }
+
+                });
+            }
+
+            $(function() {
+                $("#menuLink").on('click', toggleMenu);
+                $(".button-add").on('click', addMapping);
+                $(".button-del").on('click', delMapping);
+                $(".button-update").on('click', doUpdate);
+                $(".pure-menu-link").on('click', showPanel);
+                init();
+            });
+
+        </script>
+    </head>
+
+    <body>
+
+        <div id="layout">
+
+            <a href="#menu" id="menuLink" class="menu-link">
+                <span></span>
+            </a>
+
+            <div id="menu">
+                <div class="pure-menu">
+
+                    <span class="pure-menu-heading">RFM69 GW 0.1.0</span>
+
+                    <ul class="pure-menu-list">
+
+                        <li class="pure-menu-item">
+                            <a href="#" class="pure-menu-link" data="panel-status">STATUS</a>
+                        </li>
+
+                        <li class="pure-menu-item menu-item-divided">
+                            <a href="#" class="pure-menu-link" data="panel-general">GENERAL</a>
+                        </li>
+
+                        <li class="pure-menu-item">
+                            <a href="#" class="pure-menu-link" data="panel-wifi">WIFI</a>
+                        </li>
+
+                        <li class="pure-menu-item">
+                            <a href="#" class="pure-menu-link" data="panel-mqtt">MQTT</a>
+                        </li>
+
+                        <li class="pure-menu-item">
+                            <a href="#" class="pure-menu-link" data="panel-mapping">MAPPING</a>
+                        </li>
+
+                    </ul>
+
+                    <div class="center">
+                        <button class="pure-button button-update">Update</button>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="content">
+
+                <div class="panel" id="panel-status" style="display: block;">
+
+                    <div class="header">
+                        <h1>STATUS</h1>
+                        <h2>Current configuration</h2>
+                    </div>
+
+                    <div class="page">
+
+                        <form class="pure-form pure-form-aligned">
+                            <fieldset>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-sm-1-4" for="hostname">Hostname</label>
+                                    <input class="pure-u-1 pure-u-sm-3-4" type="text" name="hostname" disabled>
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-sm-1-4" for="network">Network</label>
+                                    <input class="pure-u-1 pure-u-sm-3-4" type="text" name="network" disabled>
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-sm-1-4" for="ip">IP</label>
+                                    <input class="pure-u-1 pure-u-sm-3-4" type="text" name="ip" disabled>
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-sm-1-4" for="mqtt">MQTT Status</label>
+                                    <input class="pure-u-1 pure-u-sm-3-4" type="text" name="mqttStatus" disabled>
+                                </div>
+
+                            </fieldset>
+
+                        </form>
+                    </div>
+                </div>
+
+                <form id="formSave" class="pure-form pure-form-stacked" action="/" method="post">
+
+                    <div class="panel" id="panel-general">
+
+                        <div class="header">
+                            <h1>GENERAL</h1>
+                            <h2>
+                                General configuration values
+                            </h2>
+                        </div>
+
+                        <div class="page">
+
+                            <fieldset>
+
+                                <div class="pure-g">
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="hbTopic">Heartbeat Topic</label>
+                                        <div class="hint">This is the topic where heartbeat messages will be sent</div>
+                                        <input name="hbTopic" type="text" class="pure-u-23-24" value="" size="8" tabindex="2" placeholder="Leave blank to avoid sending this message">
+                                    </div>
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="ipTopic">IP Topic</label>
+                                        <div class="hint">Upon restart the device will report its IP to this topic</div>
+                                        <input name="ipTopic" type="text" class="pure-u-23-24" value="" size="8" tabindex="3" placeholder="Leave blank to avoid sending this message">
+                                    </div>
+
+                                </div>
+
+                            </fieldset>
+                        </div>
+
+                    </div>
+
+                    <div class="panel" id="panel-wifi">
+
+                        <div class="header">
+                            <h1>WIFI</h1>
+                            <h2>You can configure up to 3 different WiFi networks. The device will try to connect to any of them starting with the first one.</h2>
+                        </div>
+
+                        <div class="page">
+
+                            <fieldset>
+
+                                <legend>First network</legend>
+
+                                <div class="pure-g">
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="ssid">SSID</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="5" name="ssid">
+                                    </div>
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="pass">Password</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="6" name="pass">
+                                    </div>
+                                </div>
+
+                                <legend>Second network</legend>
+
+                                <div class="pure-g">
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="ssid">SSID</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="1" name="ssid">
+                                    </div>
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="pass">Password</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="2" name="pass">
+                                    </div>
+                                </div>
+
+                                <legend>Third network</legend>
+
+                                <div class="pure-g">
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="ssid">SSID</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="3" name="ssid">
+                                    </div>
+                                    <div class="pure-u-1 pure-u-md-1-2">
+                                        <label for="pass">Password</label>
+                                        <input type="text" class="pure-u-23-24" tabindex="4" name="pass">
+                                    </div>
+                                </div>
+
+                            </fieldset>
+                        </div>
+                    </div>
+
+                    <div class="panel" id="panel-mqtt">
+
+                        <div class="header">
+                            <h1>MQTT</h1>
+                            <h2>
+                                Configure an <strong>MQTT broker</strong> in your network (or an external service) where you want the messages to be sent.
+                            </h2>
+                        </div>
+
+                        <div class="page">
+
+                            <fieldset>
+
+                                <div class="pure-g">
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="mqttServer">MQTT Server</label>
+                                        <input name="mqttServer" type="text" class="pure-u-23-24" value="" size="8" tabindex="10" placeholder="MQTT Server">
+                                    </div>
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="mqttPort">MQTT Port</label>
+                                        <input name="mqttPort" type="text" class="pure-u-23-24" value="" size="8" tabindex="11" placeholder="1883">
+                                    </div>
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="mqttUser">MQTT User</label>
+                                        <input name="mqttUser" type="text" class="pure-u-23-24" value="" size="8" tabindex="12" placeholder="Leave blank if no user/pass">
+                                    </div>
+
+                                    <div class="pure-u-1">
+                                        <label class="form-label" for="mqttPassword">MQTT Password</label>
+                                        <input name="mqttPassword" type="text" class="pure-u-23-24" value="" size="8" tabindex="13" placeholder="Leave blank if no user/pass">
+                                    </div>
+
+                                </div>
+
+                            </fieldset>
+                        </div>
+
+                    </div>
+
+                    <div class="panel" id="panel-mapping">
+
+                        <div class="header">
+                            <h1>MAPPING</h1>
+                            <h2>
+                                Configure the map between nodeID/key and MQTT topic. Messages from the given nodeID with the given key will be forwarded to the specified topic.
+                                You can also configure a default topic using {nodeid} and {key} as placeholders, if the default topic is empty messages without defined map will be discarded.
+                            </h2>
+                        </div>
+
+                        <div class="page">
+
+                            <fieldset>
+
+                                <legend>Default topic</legend>
+
+                                <div class="pure-g">
+                                    <input name="defaultTopic" type="text" class="pure-u-23-24" value="" size="8" tabindex="20" placeholder="Default MQTT Topic (use {nodeid} and {key} as placeholders)">
+                                </div>
+
+                                <legend>Specific topics</legend>
+
+                                <div id="mapping"></div>
+
+                                <button type="button" class="pure-button button-add">Add</button>
+
+                            </fieldset>
+                        </div>
+                    </div>
+
+                </form>
+
+                <div id="template">
+                    <div class="pure-g">
+                        <div class="pure-u-md-1-6 pure-u-1-2"><input name="nodeid" type="text" class="pure-u-11-12" value="" size="8" tabindex="0" placeholder="Node ID"></div>
+                        <div class="pure-u-md-1-6 pure-u-1-2"><input name="key" type="text" class="pure-u-11-12" value="" size="8" tabindex="0" placeholder="Key"></div>
+                        <div class="pure-u-md-1-2 pure-u-3-4"><input name="topic" type="text" class="pure-md-11-12 pure-u-23-24" value="" size="8" tabindex="0" placeholder="MQTT Topic"></div>
+                        <div class="pure-u-md-1-6 pure-u-1-4"><button type="button" class="pure-button button-del pure-u-5-6 pure-u-md-5-6">Del</button></div>
+                    </div>
+                </div>
+
+            </div> <!-- content -->
+
+        </div> <!-- layout -->
+
+    </body>
+
+</html>
