@@ -1,11 +1,15 @@
 #define APP_NAME                "RFM69 GW"
-#define APP_VERSION             "0.1.2"
+#define APP_VERSION             "0.1.3"
 
 #define NODEID                  1
+#define GATEWAYID               1
 #define NETWORKID               164
-#define FREQUENCY               RF69_868MHZ
+#define FREQUENCY               RF69_433MHZ
 #define ENCRYPTKEY              "fibonacci0123456"
+#define SPI_CS                  SS
+#define IRQ_PIN                 5
 #define IS_RFM69HW              0
+#define IRQ_NUM                 5
 
 #define HOSTNAME                "RFM69_GATEWAY"
 #define AP_PASS                 "fibonacci"

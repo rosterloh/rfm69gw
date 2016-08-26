@@ -28,26 +28,33 @@ in an #if clause like this:
 
 */
 
-#include <RFM69.h>
-#include <RFM69_ATC.h>
-#include <SPI.h>
-#include <SPIFlash.h>
 #include "RFM69Manager.h"
 
-bool RFM69Manager::initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, uint8_t gatewayID, const char* key, bool isRFM69HW) {
+bool RFM69Manager::initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, const char* key, uint8_t gatewayID, int16_t targetRSSI) {
 
-    _gatewayID = gatewayID;
     bool ret = RFM69_ATC::initialize(frequency, nodeID, networkID);
-    RFM69_ATC::encrypt(key);
-    if (isRFM69HW) RFM69_ATC::setHighPower();
-    #ifndef IS_GATEWAY
-        RFM69_ATC::enableAutoPower(-70);
-    #endif
+    encrypt(key);
+    _gatewayID = gatewayID;
+    if (_gatewayID > 0) enableAutoPower(targetRSSI);
+    if (_isRFM69HW) setHighPower();
 
-    char buff[50];
-    sprintf(buff, "[RADIO] Listening at %d Mhz...", frequency == RF69_433MHZ ? 433 : frequency == RF69_868MHZ ? 868 : 915);
-    Serial.println(buff);
-    Serial.println(F("[RADIO] RFM69_ATC Enabled (Auto Transmission Control)"));
+    #if RADIO_DEBUG
+        Serial.print(F("[RADIO] Node: "));
+        Serial.println(nodeID);
+        Serial.print(F("[RADIO] Network: "));
+        Serial.println(networkID);
+        if (gatewayID == 0) {
+            Serial.println("[RADIO] This node is a gateway.");
+        } else {
+            Serial.print(F("[RADIO] Gateway: "));
+            Serial.println(gatewayID);
+        }
+
+        char buff[50];
+        sprintf(buff, "[RADIO] Working at %d Mhz...", frequency == RF69_433MHZ ? 433 : frequency == RF69_868MHZ ? 868 : 915);
+        Serial.println(buff);
+        Serial.println(F("[RADIO] Auto Transmission Control (ATC) enabled"));
+    #endif
 
     return ret;
 
@@ -57,23 +64,29 @@ void RFM69Manager::onMessage(TMessageCallback fn) {
     _callback = fn;
 }
 
-void RFM69Manager::loop() {
+bool RFM69Manager::loop() {
 
-    if (RFM69_ATC::receiveDone()) {
+    boolean ret = false;
 
-        if (_callback != NULL) {
+    if (receiveDone()) {
 
-            ++_recieveCount;
+        uint8_t senderID = SENDERID;
+        int16_t rssi = RSSI;
+        uint8_t length = DATALEN;
+        char buffer[length + 1];
+        strncpy(buffer, (const char *) DATA, length);
+        buffer[length] = 0;
 
-            char buffer[RFM69_ATC::DATALEN+1];
-            strncpy(buffer, (const char *) RFM69_ATC::DATA, RFM69_ATC::DATALEN);
-            buffer[RFM69_ATC::DATALEN] = 0;
+        if (ACKRequested()) sendACK();
 
-            uint8_t parts = 1;
+        uint8_t parts = 1;
+        for (uint8_t i=0; i<length; i++) {
+            if (buffer[i] == ':') ++parts;
+        }
+
+        if (parts > 1) {
+
             uint8_t packetID = 0;
-            for (uint8_t i=0; i<RFM69_ATC::DATALEN; i++) {
-                if (buffer[i] == ':') ++parts;
-            }
             char * name = strtok(buffer, ":");
             char * value = strtok(NULL, ":");
             if (parts > 2) {
@@ -81,43 +94,23 @@ void RFM69Manager::loop() {
                 packetID = atoi(packet);
             }
 
-            packet_t data;
-            data.packetID = packetID;
-            data.nodeID = RFM69_ATC::SENDERID;
-            data.name = name;
-            data.value = value;
-            data.rssi = RFM69_ATC::RSSI;
+            _message.messageID = ++_receiveCount;
+            _message.packetID = packetID;
+            _message.nodeID = senderID;
+            _message.name = name;
+            _message.value = value;
+            _message.rssi = rssi;
+            ret = true;
 
-            _callback(&data);
-
-        }
-
-        if (RFM69_ATC::ACKRequested()) {
-
-            byte theNodeID = RFM69_ATC::SENDERID;
-            RFM69_ATC::sendACK();
-
-            #ifdef IS_GATEWAY
-
-                // When a node requests an ACK, respond to the ACK
-                // and also send a packet requesting an ACK (every PING_EVERY)
-                // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
-                if (_ackCount++ % PING_EVERY == 0) {
-
-                    //need this when sending right after reception .. ?
-                    delay(3);
-
-                    // 0 = only 1 attempt, no retries
-                    RFM69_ATC::sendWithRetry(theNodeID, "ACK TEST", 8, 0);
-
-                }
-
-            #endif
-
+            if (_callback != NULL) {
+                _callback(&_message);
+            }
 
         }
 
     }
+
+    return ret;
 
 }
 
@@ -126,20 +119,27 @@ bool RFM69Manager::send(uint8_t destinationID, char * name, char * value, uint8_
     char message[30];
     if (++_sendCount == 0) _sendCount = 1;
     sprintf(message, "%s:%s:%d", name, value, _sendCount);
-    Serial.print(F("[RADIO] Sending: "));
-    Serial.print(message);
+
+    #if RADIO_DEBUG
+        Serial.print(F("[RADIO] Sending: "));
+        Serial.print(message);
+    #endif
 
     bool ret = true;
     if (retries > 0) {
-        ret = RFM69_ATC::sendWithRetry(destinationID, message, strlen(message), retries);
+        ret = sendWithRetry(destinationID, message, strlen(message), retries);
     } else {
         RFM69_ATC::send(destinationID, message, strlen(message), requestACK);
     }
 
-    if (ret) {
-        Serial.println(" OK");
-    } else {
-        Serial.println(" KO");
-    }
+    #if RADIO_DEBUG
+        if (ret) {
+            Serial.println(" OK");
+        } else {
+            Serial.println(" KO");
+        }
+    #endif
+
+    return ret;
 
 }

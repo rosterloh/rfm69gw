@@ -23,8 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-#include "RFM69Manager.h"
 #include "defaults.h"
+#include "RFM69Manager.h"
 
 String getValue(const String& key, String defaultValue = "");
 uint8_t packetIDs[255] = {0};
@@ -39,6 +39,8 @@ void processMessage(packet_t * data) {
 
     #if DEBUG
         Serial.print("[MESSAGE]");
+        Serial.print(" messageID:");
+        Serial.print(data->messageID);
         Serial.print(" nodeID:");
         Serial.print(data->nodeID);
         Serial.print(" packetID:");
@@ -140,20 +142,19 @@ void hardwareLoop() {
 void setup() {
     hardwareSetup();
     settingsSetup();
-    wifiSetup();
     otaSetup();
+    wifiSetup();
     mqttSetup();
-    webServerSetup();
     radioSetup();
+    webServerSetup();
 }
 
 void loop() {
-    settingsLoop();
-    wifiLoop();
-    radioLoop();
-    otaLoop();
-    mqttLoop();
     hardwareLoop();
+    settingsLoop();
+    otaLoop();
+    wifiLoop();
+    mqttLoop();
+    radioLoop();
     webServerLoop();
-    delay(1);
 }

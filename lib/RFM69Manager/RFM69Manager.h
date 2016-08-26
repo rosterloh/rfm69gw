@@ -27,24 +27,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <RFM69.h>
 #include <RFM69_ATC.h>
 #include <SPI.h>
-#include <SPIFlash.h>
 
 // -----------------------------------------------------------------------------
 // Configuration
 // -----------------------------------------------------------------------------
 
-
-#define SPI_CS              SS
-#define IRQ_PIN             5
-#define IRQ_NUM             5
 #define PING_EVERY          3
 #define RETRIES             2
 #define REQUESTACK          1
-//#define ENABLE_ATC
+#define RADIO_DEBUG         1
 
 typedef struct {
-    uint8_t packetID;
-    uint8_t nodeID;
+    unsigned long messageID;
+    unsigned char packetID;
+    unsigned char nodeID;
     char * name;
     char * value;
     int16_t rssi;
@@ -56,13 +52,10 @@ class RFM69Manager: public RFM69_ATC {
 
     public:
 
-        #ifdef ESP8266
-            RFM69Manager(): RFM69_ATC(SPI_CS, IRQ_PIN, false, IRQ_NUM){}
-        #else
-            RFM69Manager(): RFM69_ATC(){}
-        #endif
+        RFM69Manager(uint8_t slaveSelectPin=RF69_SPI_CS, uint8_t interruptPin=RF69_IRQ_PIN, bool isRFM69HW=false, uint8_t interruptNum=RF69_IRQ_NUM):
+            RFM69_ATC(slaveSelectPin, interruptPin, isRFM69HW, interruptNum) {}
 
-        bool initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, uint8_t gatewayID, const char* key, bool isRFM69HW);
+        bool initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, const char* key, uint8_t gatewayID = 0, int16_t targetRSSI = -70);
         void onMessage(TMessageCallback fn);
         bool send(uint8_t destinationID, char * name, char * value, uint8_t retries = RETRIES, bool requestACK = REQUESTACK);
         bool send(char * name, char * value, uint8_t retries = RETRIES) {
@@ -75,9 +68,10 @@ class RFM69Manager: public RFM69_ATC {
 
     private:
 
+        packet_t _message;
         TMessageCallback _callback = NULL;
         uint8_t _gatewayID = 0;
-        unsigned char _recieveCount = 0;
+        unsigned long _receiveCount = 0;
         unsigned char _sendCount = 0;
         unsigned int _ackCount = 0;
 

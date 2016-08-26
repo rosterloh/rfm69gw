@@ -11,7 +11,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 
 #include "RFM69Manager.h"
 
-RFM69Manager radio;
+RFM69Manager radio(SPI_CS, IRQ_PIN, IS_RFM69HW, IRQ_NUM);
 
 void processMessage(packet_t * data);
 
@@ -21,7 +21,7 @@ void processMessage(packet_t * data);
 
 void radioSetup() {
     delay(10);
-    radio.initialize(FREQUENCY, NODEID, NETWORKID, 0, ENCRYPTKEY, IS_RFM69HW);
+    radio.initialize(FREQUENCY, NODEID, NETWORKID, ENCRYPTKEY);
     radio.onMessage(processMessage);
 }
 
