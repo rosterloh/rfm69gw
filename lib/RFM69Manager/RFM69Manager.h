@@ -64,7 +64,10 @@ class RFM69Manager: public RFM69_ATC {
         bool send(char * name, char * value, bool requestACK = REQUESTACK) {
             return send(_gatewayID, name, value, 0, requestACK);
         }
-        void loop();
+        bool loop();
+        packet_t * getMessage() {
+            return &_message;
+        }
 
     private:
 
