@@ -11,7 +11,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 
 #include "RFM69Manager.h"
 
-RFM69Manager radio(SPI_CS, IRQ_PIN, IS_RFM69HW, IRQ_NUM);
+RFM69Manager radio(SPI_CS, IRQ_PIN, IS_RFM69HW, digitalPinToInterrupt(IRQ_PIN));
 
 void processMessage(packet_t * data);
 

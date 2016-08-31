@@ -62,6 +62,9 @@ bool handleFileRead(String path) {
 
 void handleGet() {
 
+    // Avoid web clients to be disconnected for X minutes when in AP mode
+    resetConnectionTimeout();
+
     #if DEBUG
         Serial.println("[WEBSERVER] Request: /get");
     #endif
@@ -73,32 +76,32 @@ void handleGet() {
     JsonObject& root = jsonBuffer.createObject();
 
     root["app"] = buffer;
-    root["hostname"] = getValue("hostname", HOSTNAME);
+    root["hostname"] = getSetting("hostname", HOSTNAME);
     root["network"] = getNetwork();
     root["ip"] = getIP();
-    root["mqttStatus"] = mqtt.connected() ? "1" : "0";
-    root["mqttServer"] = getValue("mqttServer", MQTT_SERVER);
-    root["mqttPort"] = getValue("mqttPort", String(MQTT_PORT));
-    root["mqttUser"] = getValue("mqttUser", MQTT_USER);
-    root["mqttPassword"] = getValue("mqttPassword", MQTT_PASS);
-    root["ipTopic"] = getValue("ipTopic", IP_TOPIC);
-    root["hbTopic"] = getValue("hbTopic", HEARTBEAT_TOPIC);
-    root["defaultTopic"] = getValue("defaultTopic", DEFAULT_TOPIC);
+    root["mqttStatus"] = mqttConnected() ? "1" : "0";
+    root["mqttServer"] = getSetting("mqttServer", MQTT_SERVER);
+    root["mqttPort"] = getSetting("mqttPort", String(MQTT_PORT));
+    root["mqttUser"] = getSetting("mqttUser", MQTT_USER);
+    root["mqttPassword"] = getSetting("mqttPassword", MQTT_PASS);
+    root["ipTopic"] = getSetting("ipTopic", IP_TOPIC);
+    root["hbTopic"] = getSetting("hbTopic", HEARTBEAT_TOPIC);
+    root["defaultTopic"] = getSetting("defaultTopic", DEFAULT_TOPIC);
 
     JsonArray& wifi = root.createNestedArray("wifi");
     for (byte i=0; i<3; i++) {
         JsonObject& network = wifi.createNestedObject();
-        network["ssid"] = getValue("ssid" + String(i));
-        network["pass"] = getValue("pass" + String(i));
+        network["ssid"] = getSetting("ssid" + String(i));
+        network["pass"] = getSetting("pass" + String(i));
     }
 
     JsonArray& mappings = root.createNestedArray("mapping");
-    byte mappingCount = getValue("mappingCount", "0").toInt();
+    byte mappingCount = getSetting("mappingCount", "0").toInt();
     for (byte i=0; i<mappingCount; i++) {
         JsonObject& mapping = mappings.createNestedObject();
-        mapping["nodeid"] = getValue("nodeid" + String(i));
-        mapping["key"] = getValue("key" + String(i));
-        mapping["topic"] = getValue("topic" + String(i));
+        mapping["nodeid"] = getSetting("nodeid" + String(i));
+        mapping["key"] = getSetting("key" + String(i));
+        mapping["topic"] = getSetting("topic" + String(i));
     }
 
     String output;
@@ -113,7 +116,9 @@ void handlePost() {
         Serial.println(F("[WEBSERVER] Request: /post"));
     #endif
 
-    unsigned int mappingCount = getValue("mappingCount", "0").toInt();
+    bool dirty = false;
+    bool dirtyMQTT = false;
+    unsigned int mappingCount = getSetting("mappingCount", "0").toInt();
     unsigned int network = 0;
     unsigned int mapping = 0;
 
@@ -141,26 +146,38 @@ void handlePost() {
             ++mapping;
         }
 
-        setValue(key, value);
+        if (value != getSetting(key)) {
+            setSetting(key, value);
+            dirty = true;
+            if (key.startsWith("mqtt")) dirtyMQTT = true;
+        }
 
     }
 
     // delete remaining mapping
     for (unsigned int i=mapping; i<mappingCount; i++) {
-        delValue("nodeid" + String(i));
-        delValue("key" + String(i));
-        delValue("topic" + String(i));
+        delSetting("nodeid" + String(i));
+        delSetting("key" + String(i));
+        delSetting("topic" + String(i));
+        dirty = true;
     }
 
     String value = String(mapping);
-    setValue("mappingCount", value);
-    saveSettings();
+    setSetting("mappingCount", value);
+
+    if (dirty) saveSettings();
 
     server.send(202, "text/json", "{}");
 
     // Disconnect from current WIFI network if it's not the first on the list
     // wifiLoop will take care of the reconnection
-    if (getNetwork() != getValue("ssid0")) wifiDisconnect();
+    if (getNetwork() != getSetting("ssid0")) {
+        wifiDisconnect();
+
+    // else check if we should reconigure MQTT connection
+    } else if (dirtyMQTT) {
+        mqttDisconnect();
+    }
 
 }
 

@@ -12,6 +12,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 #include "JustWifi.h"
 
 JustWifi jw;
+unsigned long wifiLastConnectionTime = 0;
 
 // -----------------------------------------------------------------------------
 // WIFI
@@ -36,7 +37,7 @@ void wifiSetup() {
 
         // Disconnect from MQTT server if no WIFI
         if (code != MESSAGE_CONNECTED) {
-            if (mqtt.connected()) mqtt.disconnect();
+            if (mqttConnected()) mqttDisconnect();
         }
 
         #if DEBUG
@@ -105,28 +106,54 @@ bool wifiAP() {
     return jw.startAP((char *) HOSTNAME, (char *) AP_PASS);
 }
 
+void resetConnectionTimeout() {
+    wifiLastConnectionTime = millis();
+}
+
+void wifiConnect() {
+
+    resetConnectionTimeout();
+
+    //WiFi.printDiag(Serial);
+
+    jw.cleanNetworks();
+    if (getSetting("ssid0").length() > 0) jw.addNetwork((char *) getSetting("ssid0").c_str(), (char *) getSetting("pass0").c_str());
+    if (getSetting("ssid1").length() > 0) jw.addNetwork((char *) getSetting("ssid1").c_str(), (char *) getSetting("pass1").c_str());
+    if (getSetting("ssid2").length() > 0) jw.addNetwork((char *) getSetting("ssid2").c_str(), (char *) getSetting("pass2").c_str());
+
+    // Connecting
+    if (!jw.autoConnect()) {
+        if (!jw.connect()) {
+            if (!wifiAP()) {
+                #if DEBUG
+                    Serial.println("[WIFI] Could not start any wifi interface!");
+                #endif
+            }
+        }
+    }
+
+}
+
 void wifiLoop() {
 
     jw.loop();
 
     // Check disconnection
-    if ((!jw.connected()) && (jw.getMode() != MODE_ACCESS_POINT)) {
+    if (!jw.connected()) {
 
-        jw.cleanNetworks();
-        if (getValue("ssid0").length() > 0) jw.addNetwork((char *) getValue("ssid0").c_str(), (char *) getValue("pass0").c_str());
-        if (getValue("ssid1").length() > 0) jw.addNetwork((char *) getValue("ssid1").c_str(), (char *) getValue("pass1").c_str());
-        if (getValue("ssid2").length() > 0) jw.addNetwork((char *) getValue("ssid2").c_str(), (char *) getValue("pass2").c_str());
-
-        // Connecting
-        if (!jw.autoConnect()) {
-            if (!jw.connect()) {
-                if (!wifiAP()) {
-                    #if DEBUG
-                        Serial.println("[WIFI] Could not start any wifi interface!");
-                    #endif
-                }
+        // If we are in AP mode try to reconnect every WIFI_RECONNECT_INTERVAL
+        // wifiLastConnectionTime gets updated upon every connect try or when
+        // the webserver is hit by a request to avoid web clients to be
+        // disconnected while configuring the board
+        if (jw.getMode() == MODE_ACCESS_POINT) {
+            if (millis() - wifiLastConnectionTime > WIFI_RECONNECT_INTERVAL) {
+                wifiConnect();
             }
-        }
 
+        // else reconnect right away
+        } else {
+            wifiConnect();
+        }
     }
+
 }

@@ -1,4 +1,4 @@
-## RFM69 Gateway
+## RFM69 Gateway [![Dependency Status](https://dependencyci.com/github/rosterloh/rfm69gw/badge)](https://dependencyci.com/github/rosterloh/rfm69gw)
 
 Thanks to amazing project from [Xose Pérez](https://bitbucket.org/xoseperez/rfm69gw)
 

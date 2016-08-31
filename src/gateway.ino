@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "defaults.h"
 #include "RFM69Manager.h"
 
-String getValue(const String& key, String defaultValue = "");
+String getSetting(const String& key, String defaultValue = "");
 uint8_t packetIDs[255] = {0};
 
 // -----------------------------------------------------------------------------
@@ -81,18 +81,18 @@ void processMessage(packet_t * data) {
 
     // Try to find a matching mapping
     bool found = false;
-    unsigned int count = getValue("mappingCount", "0").toInt();
+    unsigned int count = getSetting("mappingCount", "0").toInt();
     for (unsigned int i=0; i<count; i++) {
-        if ((getValue("nodeid" + String(i)) == String(data->nodeID)) &&
-            (getValue("key" + String(i)) == data->name)) {
-            mqttSend((char *) getValue("topic" + String(i)).c_str(), (char *) String(data->value).c_str());
+        if ((getSetting("nodeid" + String(i)) == String(data->nodeID)) &&
+            (getSetting("key" + String(i)) == data->name)) {
+            mqttSend((char *) getSetting("topic" + String(i)).c_str(), (char *) String(data->value).c_str());
             found = true;
             break;
         }
     }
 
     if (!found) {
-        String topic = getValue("defaultTopic");
+        String topic = getSetting("defaultTopic");
         if (topic.length() > 0) {
             topic.replace("{nodeid}", String(data->nodeID));
             topic.replace("{key}", String(data->name));
@@ -126,7 +126,7 @@ void hardwareLoop() {
 
     if (millis() - last_heartbeat > HEARTBEAT_INTERVAL) {
         last_heartbeat = millis();
-        mqttSend((char *) getValue("hbTopic", HEARTBEAT_TOPIC).c_str(), (char *) "1");
+        mqttSend((char *) getSetting("hbTopic", HEARTBEAT_TOPIC).c_str(), (char *) "1");
         #if DEBUG
             Serial.print(F("[BEAT] Free heap: "));
             Serial.println(ESP.getFreeHeap());

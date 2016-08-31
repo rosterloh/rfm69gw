@@ -117,8 +117,12 @@ bool RFM69Manager::loop() {
 bool RFM69Manager::send(uint8_t destinationID, char * name, char * value, uint8_t retries, bool requestACK) {
 
     char message[30];
-    if (++_sendCount == 0) _sendCount = 1;
-    sprintf(message, "%s:%s:%d", name, value, _sendCount);
+    #if SEND_PACKET_ID
+        if (++_sendCount == 0) _sendCount = 1;
+        sprintf(message, "%s:%s:%d", name, value, _sendCount);
+    #else
+        sprintf(message, "%s:%s", name, value);
+    #endif
 
     #if RADIO_DEBUG
         Serial.print(F("[RADIO] Sending: "));

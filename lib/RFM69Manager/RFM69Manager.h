@@ -36,6 +36,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RETRIES             2
 #define REQUESTACK          1
 #define RADIO_DEBUG         1
+#define SEND_PACKET_ID      1
 
 typedef struct {
     unsigned long messageID;
@@ -75,7 +76,9 @@ class RFM69Manager: public RFM69_ATC {
         TMessageCallback _callback = NULL;
         uint8_t _gatewayID = 0;
         unsigned long _receiveCount = 0;
-        unsigned char _sendCount = 0;
+        #if SEND_PACKET_ID
+            unsigned char _sendCount = 0;
+        #endif
         unsigned int _ackCount = 0;
 
 };

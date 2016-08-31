@@ -19,6 +19,14 @@ PubSubClient mqtt(client);
 // MQTT
 // -----------------------------------------------------------------------------
 
+bool mqttConnected() {
+    return mqtt.connected();
+}
+
+void mqttDisconnect() {
+    mqtt.disconnect();
+}
+
 void mqttSend(char * topic, char * message) {
 
     if (!mqtt.connected()) return;
@@ -38,10 +46,10 @@ void mqttConnect() {
 
     if (!mqtt.connected()) {
 
-        String host = getValue("mqttServer", MQTT_SERVER);
-        String port = getValue("mqttPort", String(MQTT_PORT));
-        String user = getValue("mqttUser");
-        String pass = getValue("mqttPassword");
+        String host = getSetting("mqttServer", MQTT_SERVER);
+        String port = getSetting("mqttPort", String(MQTT_PORT));
+        String user = getSetting("mqttUser");
+        String pass = getSetting("mqttPassword");
 
         #if DEBUG
             Serial.print(F("[MQTT] Connecting to broker at "));
@@ -56,12 +64,12 @@ void mqttConnect() {
                 Serial.print(user);
                 Serial.print(F(": "));
             #endif
-            mqtt.connect(getValue("hostname", HOSTNAME).c_str(), user.c_str(), pass.c_str());
+            mqtt.connect(getSetting("hostname", HOSTNAME).c_str(), user.c_str(), pass.c_str());
         } else {
             #if DEBUG
                 Serial.print(F(" anonymously: "));
             #endif
-            mqtt.connect(getValue("hostname", HOSTNAME).c_str());
+            mqtt.connect(getSetting("hostname", HOSTNAME).c_str());
         }
 
         if (mqtt.connected()) {
@@ -71,7 +79,7 @@ void mqttConnect() {
             #endif
 
             // Say hello and report our IP
-            mqttSend((char *) getValue("ipTopic", IP_TOPIC).c_str(), (char *) WiFi.localIP().toString().c_str());
+            mqttSend((char *) getSetting("ipTopic", IP_TOPIC).c_str(), (char *) WiFi.localIP().toString().c_str());
 
         } else {
 
