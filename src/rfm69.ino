@@ -22,6 +22,7 @@ void processMessage(packet_t * data);
 void radioSetup() {
     delay(10);
     radio.initialize(FREQUENCY, NODEID, NETWORKID, ENCRYPTKEY);
+    radio.promiscuous(PROMISCUOUS);
     radio.onMessage(processMessage);
 }
 

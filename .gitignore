@@ -1,3 +1,7 @@
-.pioenvs
 .clang_complete
 .gcc-flags.json
+.pio*
+*.gch
+node_modules
+data
+.tmp

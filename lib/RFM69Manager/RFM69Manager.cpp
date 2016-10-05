@@ -71,13 +71,18 @@ bool RFM69Manager::loop() {
     if (receiveDone()) {
 
         uint8_t senderID = SENDERID;
+        uint8_t targetID = _promiscuousMode ? TARGETID : _address;
         int16_t rssi = RSSI;
         uint8_t length = DATALEN;
         char buffer[length + 1];
         strncpy(buffer, (const char *) DATA, length);
         buffer[length] = 0;
 
-        if (ACKRequested()) sendACK();
+        // Do not send ACKs in promiscuous mode,
+        // we want to listen without being heard
+        if (!_promiscuousMode) {
+            if (ACKRequested()) sendACK();
+        }
 
         uint8_t parts = 1;
         for (uint8_t i=0; i<length; i++) {
@@ -96,7 +101,8 @@ bool RFM69Manager::loop() {
 
             _message.messageID = ++_receiveCount;
             _message.packetID = packetID;
-            _message.nodeID = senderID;
+            _message.senderID = senderID;
+            _message.targetID = targetID;
             _message.name = name;
             _message.value = value;
             _message.rssi = rssi;

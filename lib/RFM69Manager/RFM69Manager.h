@@ -41,7 +41,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 typedef struct {
     unsigned long messageID;
     unsigned char packetID;
-    unsigned char nodeID;
+    unsigned char senderID;
+    unsigned char targetID;
     char * name;
     char * value;
     int16_t rssi;
@@ -54,7 +55,7 @@ class RFM69Manager: public RFM69_ATC {
     public:
 
         RFM69Manager(uint8_t slaveSelectPin=RF69_SPI_CS, uint8_t interruptPin=RF69_IRQ_PIN, bool isRFM69HW=false, uint8_t interruptNum=RF69_IRQ_NUM):
-            RFM69_ATC(slaveSelectPin, interruptPin, isRFM69HW, interruptNum) {}
+            RFM69_ATC(slaveSelectPin, interruptPin, isRFM69HW, interruptNum) {};
 
         bool initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, const char* key, uint8_t gatewayID = 0, int16_t targetRSSI = -70);
         void onMessage(TMessageCallback fn);

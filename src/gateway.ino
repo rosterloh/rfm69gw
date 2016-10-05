@@ -23,11 +23,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+#include "version.h"
 #include "defaults.h"
+#include <WebSockets.h>
 #include "RFM69Manager.h"
 
 String getSetting(const String& key, String defaultValue = "");
-uint8_t packetIDs[255] = {0};
+struct _node_t {
+  unsigned long count = 0;
+  unsigned long missing = 0;
+  unsigned long duplicates = 0;
+  unsigned char lastPacketID = 0;
+};
+
+_node_t nodeInfo[255];
 
 // -----------------------------------------------------------------------------
 // Common methods
@@ -41,13 +50,15 @@ void processMessage(packet_t * data) {
         Serial.print("[MESSAGE]");
         Serial.print(" messageID:");
         Serial.print(data->messageID);
-        Serial.print(" nodeID:");
-        Serial.print(data->nodeID);
+        Serial.print(" senderID:");
+        Serial.print(data->senderID);
+        Serial.print(" targetID:");
+        Serial.print(data->targetID);
         Serial.print(" packetID:");
         Serial.print(data->packetID);
         Serial.print(" name:");
         Serial.print(data->name);
-        Serial.print(" value: ");
+        Serial.print(" value:");
         Serial.print(data->value);
         Serial.print(" rssi:");
         Serial.print(data->rssi);
@@ -57,33 +68,46 @@ void processMessage(packet_t * data) {
     // packetID==0 means device is not sending packetID info
     if (data->packetID > 0) {
 
-        if (packetIDs[data->nodeID] == data->packetID) {
+      unsigned char gap = data->packetID - nodeInfo[data->senderID].lastPacketID;
+
+        if (gap == 0) {
             #if DEBUG
-                Serial.println(" DUPLICATED");
+                Serial.print(" DUPLICATED");
             #endif
+            nodeInfo[data->senderID].duplicates = nodeInfo[data->senderID].duplicates + 1;
             return;
         }
 
-        #if DEBUG
-            if (packetIDs[data->nodeID] > 0) {
-                if (packetIDs[data->nodeID] != (data->packetID-1)) {
-                    Serial.println(" MISSING PACKETS!!");
-                }
-            }
-        #endif
+        if ((gap > 1) && (data->packetID > 1)) {
+            #if DEBUG
+                Serial.print(" MISSING PACKETS!!");
+            #endif
+            nodeInfo[data->senderID].missing = nodeInfo[data->senderID].missing + gap - 1;
+        }
 
     }
-    packetIDs[data->nodeID] = data->packetID;
+
+    nodeInfo[data->senderID].lastPacketID = data->packetID;
+    nodeInfo[data->senderID].count = nodeInfo[data->senderID].count + 1;
 
     #if DEBUG
         Serial.println();
     #endif
 
+    // Send info to websocket clients
+    char buffer[60];
+    sprintf_P(
+        buffer,
+        PSTR("{'senderID': %u, 'targetID': %u, 'packetID': %u, 'name': '%s', 'value': '%s', 'rssi': %d, 'duplicates': %d, 'missing': %d}"),
+        data->senderID, data->targetID, data->packetID, data->name, data->value, data->rssi,
+        nodeInfo[data->senderID].duplicates , nodeInfo[data->senderID].missing);
+    webSocketSend(buffer);
+
     // Try to find a matching mapping
     bool found = false;
     unsigned int count = getSetting("mappingCount", "0").toInt();
     for (unsigned int i=0; i<count; i++) {
-        if ((getSetting("nodeid" + String(i)) == String(data->nodeID)) &&
+        if ((getSetting("nodeid" + String(i)) == String(data->senderID)) &&
             (getSetting("key" + String(i)) == data->name)) {
             mqttSend((char *) getSetting("topic" + String(i)).c_str(), (char *) String(data->value).c_str());
             found = true;
@@ -94,7 +118,7 @@ void processMessage(packet_t * data) {
     if (!found) {
         String topic = getSetting("defaultTopic");
         if (topic.length() > 0) {
-            topic.replace("{nodeid}", String(data->nodeID));
+            topic.replace("{nodeid}", String(data->senderID));
             topic.replace("{key}", String(data->name));
             mqttSend((char *) topic.c_str(), (char *) String(data->value).c_str());
         }
@@ -124,13 +148,15 @@ void hardwareLoop() {
     // Heartbeat
     static unsigned long last_heartbeat = 0;
 
-    if (millis() - last_heartbeat > HEARTBEAT_INTERVAL) {
-        last_heartbeat = millis();
-        mqttSend((char *) getSetting("hbTopic", HEARTBEAT_TOPIC).c_str(), (char *) "1");
-        #if DEBUG
-            Serial.print(F("[BEAT] Free heap: "));
-            Serial.println(ESP.getFreeHeap());
-        #endif
+    if (mqttConnected()) {
+        if ((millis() - last_heartbeat > HEARTBEAT_INTERVAL) || (last_heartbeat == 0)) {
+            last_heartbeat = millis();
+            mqttSend((char *) getSetting("hbTopic", HEARTBEAT_TOPIC).c_str(), (char *) "1");
+            #if DEBUG
+                Serial.print(F("[BEAT] Free heap: "));
+                Serial.println(ESP.getFreeHeap());
+            #endif
+        }
     }
 
 }
@@ -147,6 +173,7 @@ void setup() {
     mqttSetup();
     radioSetup();
     webServerSetup();
+    webSocketSetup();
 }
 
 void loop() {
@@ -157,4 +184,5 @@ void loop() {
     mqttLoop();
     radioLoop();
     webServerLoop();
+    webSocketLoop();
 }

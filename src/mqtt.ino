@@ -14,6 +14,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 
 WiFiClient client;
 PubSubClient mqtt(client);
+boolean mqttStatus = false;
 
 // -----------------------------------------------------------------------------
 // MQTT
@@ -78,6 +79,11 @@ void mqttConnect() {
                 Serial.println(F("connected!"));
             #endif
 
+            mqttStatus = true;
+
+            // Send status via webSocket
+            //webSocketSend((char *) F("{'mqttStatus': true}"));
+
             // Say hello and report our IP
             mqttSend((char *) getSetting("ipTopic", IP_TOPIC).c_str(), (char *) WiFi.localIP().toString().c_str());
 
@@ -102,14 +108,23 @@ void mqttLoop() {
     static unsigned long lastPeriod = 0;
 
     if (WiFi.status() == WL_CONNECTED) {
+
         if (!mqtt.connected()) {
+
+          if (mqttStatus) {
+              //webSocketSend((char *) F("{'mqttStatus': false}"));
+              mqttStatus = false;
+          }
+
         	unsigned long currPeriod = millis() / MQTT_RECONNECT_DELAY;
         	if (currPeriod != lastPeriod) {
         	    lastPeriod = currPeriod;
                 mqttConnect();
             }
         }
+
         if (mqtt.connected()) mqtt.loop();
+        
     }
 
 }

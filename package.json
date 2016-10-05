@@ -1,0 +1,27 @@
+{
+  "name": "esp8266-filesystem-builder",
+  "version": "0.1.0",
+  "description": "Gulp based build system for ESP8266 file system files",
+  "main": "gulpfile.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rosterloh/rfm69gw.git"
+  },
+  "author": "Richard Osterloh <richard.osterloh@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/rosterloh/rfm69gw",
+  "devDependencies": {
+    "del": "^2.2.2",
+    "gulp": "^3.9.1",
+    "gulp-clean-css": "^2.0.13",
+    "gulp-gzip": "^1.4.0",
+    "gulp-htmlmin": "^3.0.0",
+    "gulp-if": "^2.0.1",
+    "gulp-plumber": "^1.1.0",
+    "gulp-uglify": "^2.0.0",
+    "gulp-useref": "^3.1.2",
+    "jquery": "^3.1.1",
+    "purecss": "^0.6.0"
+  },
+  "dependencies": {}
+}
