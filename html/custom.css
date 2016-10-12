@@ -19,14 +19,26 @@
 }
 .pure-button {
     color: white;
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-radius: 4px;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
-.button-update {
+.main-buttons {
+     margin: 50px auto;
+    text-align: center;
+}
+.main-buttons button {
     width: 100px;
-    margin: 50px auto;
+    margin: 5px auto;
+}
+.button-update {
     background: #1f8dd6;
+}
+.button-reset {
+    background: rgb(202, 60, 60);
+}
+.button-reconnect {
+    background: rgb(202, 60, 60);
 }
 .button-add {
     margin-top: 5px;

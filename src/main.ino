@@ -25,8 +25,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "version.h"
 #include "defaults.h"
+#include "debug.h"
 #include <WebSockets.h>
+#include "FS.h"
+#include <NtpClientLib.h>
 #include "RFM69Manager.h"
+
+// -----------------------------------------------------------------------------
+// Prototypes
+// -----------------------------------------------------------------------------
 
 String getSetting(const String& key, String defaultValue = "");
 struct _node_t {
@@ -42,27 +49,37 @@ _node_t nodeInfo[255];
 // Common methods
 // -----------------------------------------------------------------------------
 
+void ledOn() {
+    digitalWrite(LED_PIN, LOW);
+}
+
+void ledOff() {
+    digitalWrite(LED_PIN, HIGH);
+}
+
+void blink(unsigned int delayms, unsigned char times = 1) {
+    for (unsigned char i=0; i<times; i++) {
+        if (i>0) delay(delayms);
+        ledOn();
+        delay(delayms);
+        ledOff();
+    }
+}
+
 void processMessage(packet_t * data) {
 
-    blink(3);
+  blink(5, 1);
 
-    #if DEBUG
-        Serial.print("[MESSAGE]");
-        Serial.print(" messageID:");
-        Serial.print(data->messageID);
-        Serial.print(" senderID:");
-        Serial.print(data->senderID);
-        Serial.print(" targetID:");
-        Serial.print(data->targetID);
-        Serial.print(" packetID:");
-        Serial.print(data->packetID);
-        Serial.print(" name:");
-        Serial.print(data->name);
-        Serial.print(" value:");
-        Serial.print(data->value);
-        Serial.print(" rssi:");
-        Serial.print(data->rssi);
-    #endif
+    DEBUG_MSG(
+        "[MESSAGE] messageID:%d senderID:%d targetID:%d packetID:%d name:%s value:%s rssi:%d",
+        data->messageID,
+        data->senderID,
+        data->targetID,
+        data->packetID,
+        data->name,
+        data->value,
+        data->rssi
+    );
 
     // Detect duplicates and missing packets
     // packetID==0 means device is not sending packetID info
@@ -71,17 +88,13 @@ void processMessage(packet_t * data) {
       unsigned char gap = data->packetID - nodeInfo[data->senderID].lastPacketID;
 
         if (gap == 0) {
-            #if DEBUG
-                Serial.print(" DUPLICATED");
-            #endif
+            DEBUG_MSG(" DUPLICATED");
             nodeInfo[data->senderID].duplicates = nodeInfo[data->senderID].duplicates + 1;
             return;
         }
 
         if ((gap > 1) && (data->packetID > 1)) {
-            #if DEBUG
-                Serial.print(" MISSING PACKETS!!");
-            #endif
+            DEBUG_MSG(" MISSING PACKETS!!");
             nodeInfo[data->senderID].missing = nodeInfo[data->senderID].missing + gap - 1;
         }
 
@@ -90,9 +103,7 @@ void processMessage(packet_t * data) {
     nodeInfo[data->senderID].lastPacketID = data->packetID;
     nodeInfo[data->senderID].count = nodeInfo[data->senderID].count + 1;
 
-    #if DEBUG
-        Serial.println();
-    #endif
+    DEBUG_MSG("\n");
 
     // Send info to websocket clients
     char buffer[60];
@@ -116,7 +127,7 @@ void processMessage(packet_t * data) {
     }
 
     if (!found) {
-        String topic = getSetting("defaultTopic");
+        String topic = getSetting("defaultTopic", MQTT_DEFAULT_TOPIC);
         if (topic.length() > 0) {
             topic.replace("{nodeid}", String(data->senderID));
             topic.replace("{key}", String(data->name));
@@ -126,38 +137,53 @@ void processMessage(packet_t * data) {
 
 }
 
-void blink(unsigned int time) {
-    digitalWrite(LED_PIN, HIGH);
-    delay(time);
-    digitalWrite(LED_PIN, LOW);
-}
-
 // -----------------------------------------------------------------------------
 // Hardware
 // -----------------------------------------------------------------------------
 
 void hardwareSetup() {
-    Serial.begin(SERIAL_BAUD);
-    Serial.println();
-    Serial.println();
+    Serial.begin(SERIAL_BAUDRATE);
+    SPIFFS.begin();
     pinMode(LED_PIN, OUTPUT);
+    ledOff();
 }
 
 void hardwareLoop() {
 
     // Heartbeat
     static unsigned long last_heartbeat = 0;
-
     if (mqttConnected()) {
         if ((millis() - last_heartbeat > HEARTBEAT_INTERVAL) || (last_heartbeat == 0)) {
             last_heartbeat = millis();
-            mqttSend((char *) getSetting("hbTopic", HEARTBEAT_TOPIC).c_str(), (char *) "1");
-            #if DEBUG
-                Serial.print(F("[BEAT] Free heap: "));
-                Serial.println(ESP.getFreeHeap());
-            #endif
+            mqttSend((char *) getSetting("hbTopic", MQTT_HEARTBEAT_TOPIC).c_str(), (char *) "1");
+            DEBUG_MSG("[BEAT] Free heap: %d\n", ESP.getFreeHeap());
+            DEBUG_MSG("[NTP] Time: %s\n", (char *) NTP.getTimeDateString().c_str());
         }
     }
+
+}
+
+void welcome() {
+
+    delay(2000);
+    Serial.printf("%s %s\n", (char *) APP_NAME, (char *) APP_VERSION);
+    Serial.printf("%s\n%s\n\n", (char *) APP_AUTHOR, (char *) APP_WEBSITE);
+    //Serial.printf("Device: %s\n", (char *) getIdentifier().c_str());
+    Serial.printf("ChipID: %06X\n", ESP.getChipId());
+    Serial.printf("Last reset reason: %s\n", (char *) ESP.getResetReason().c_str());
+    Serial.printf("Memory size: %d bytes\n", ESP.getFlashChipSize());
+    Serial.printf("Free heap: %d bytes\n", ESP.getFreeHeap());
+    FSInfo fs_info;
+    if (SPIFFS.info(fs_info)) {
+        Serial.printf("File system total size: %d bytes\n", fs_info.totalBytes);
+        Serial.printf("            used size : %d bytes\n", fs_info.usedBytes);
+        Serial.printf("            block size: %d bytes\n", fs_info.blockSize);
+        Serial.printf("            page size : %d bytes\n", fs_info.pageSize);
+        Serial.printf("            max files : %d\n", fs_info.maxOpenFiles);
+        Serial.printf("            max length: %d\n", fs_info.maxPathLength);
+    }
+    Serial.println();
+    Serial.println();
 
 }
 
@@ -167,6 +193,7 @@ void hardwareLoop() {
 
 void setup() {
     hardwareSetup();
+    welcome();
     settingsSetup();
     otaSetup();
     wifiSetup();
@@ -174,6 +201,7 @@ void setup() {
     radioSetup();
     webServerSetup();
     webSocketSetup();
+    ntpSetup();
 }
 
 void loop() {
@@ -185,4 +213,6 @@ void loop() {
     radioLoop();
     webServerLoop();
     webSocketLoop();
+    ntpLoop();
+    delay(5);
 }

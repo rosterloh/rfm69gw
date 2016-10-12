@@ -6,13 +6,35 @@ function doUpdate() {
     self.addClass("loading");
     $.ajax({
         'method': 'POST',
-        'url': '/post',
+        'url': '/save',
         'dataType': 'json',
         'data': $("#formSave").serializeArray()
     }).done(function(data) {
         self.removeClass("loading");
     }).fail(function() {
         self.removeClass("loading");
+    });
+}
+
+function doReset() {
+    var response = window.confirm("Are you sure you want to reset the device?");
+    if (response == false) return;
+    var self = $(this);
+    self.addClass("loading");
+    $.ajax({
+        'method': 'GET',
+        'url': '/reset'
+    });
+}
+
+function doReconnect() {
+    var response = window.confirm("Are you sure you want to disconnect from the current WIFI network?");
+    if (response == false) return;
+    var self = $(this);
+    self.addClass("loading");
+    $.ajax({
+        'method': 'GET',
+        'url': '/reconnect'
     });
 }
 
@@ -46,17 +68,49 @@ function toggleMenu() {
 function processData(data) {
 
     // pre-process
-    data.network = data.network.toUpperCase();
-    data.mqttStatus = data.mqttStatus ? "CONNECTED" : "NOT CONNECTED";
+    if ("network" in data) {
+        data.network = data.network.toUpperCase();
+    }
+    if ("mqttStatus" in data) {
+        data.mqttStatus = data.mqttStatus ? "CONNECTED" : "NOT CONNECTED";
+    }
 
     // title
-    document.title = data.app;
-    $(".pure-menu-heading").html(data.app);
+    if ("app" in data) {
+        $(".pure-menu-heading").html(data.app);
+        var title = data.app;
+        if ("hostname" in data) {
+            title = data.hostname + " - " + title;
+        }
+        document.title = title;
+    }
 
     // automatic assign
     Object.keys(data).forEach(function(key) {
-        var id = "input[name=" + key + "]";
-        if ($(id).length) $(id).val(data[key]);
+
+        // Look for INPUTs
+        var element = $("input[name=" + key + "]");
+        if (element.length > 0) {
+            if (element.attr('type') == 'checkbox') {
+                element.prop("checked", data[key] == 1)
+                    .iphoneStyle({
+                        resizeContainer: false,
+                        resizeHandle: false,
+                        checkedLabel: 'ON',
+                        uncheckedLabel: 'OFF'
+                    })
+                    .iphoneStyle("refresh");
+            } else {
+                element.val(data[key]);
+            }
+        }
+
+        // Look for SELECTs
+        var element = $("select[name=" + key + "]");
+        if (element.length > 0) {
+            element.val(data[key]);
+        }
+
     });
 
     // WIFI
@@ -89,22 +143,35 @@ function processData(data) {
 
 }
 
+function getJson(str) {
+    try {
+        return JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+}
+
 function init() {
+
     $("#menuLink").on('click', toggleMenu);
     $(".button-add").on('click', addMapping);
     $(".button-del").on('click', delMapping);
     $(".button-update").on('click', doUpdate);
+    $(".button-reset").on('click', doReset);
+    $(".button-reconnect").on('click', doReconnect);
     $(".pure-menu-link").on('click', showPanel);
-    $.ajax({'method': 'GET', 'url': '/get', 'dataType': 'json'}).done(processData);
-    websock = new WebSocket('ws://' + window.location.hostname + ':81/');
-    websock.onopen = function(evt) { console.log('[WEBSOCKET] Open'); };
-    websock.onclose = function(evt) { console.log('[WEBSOCKET] Close'); };
-    websock.onerror = function(evt) { console.log('[WEBSOCKET] Error'); console.log(evt.data); };
+
+    var host = window.location.hostname;
+    //host = "rfm69gw.local";
+    websock = new WebSocket('ws://' + host + ':81/');
+    websock.onopen = function(evt) {};
+    websock.onclose = function(evt) {};
+    websock.onerror = function(evt) {};
     websock.onmessage = function(evt) {
-        console.log('[WEBSOCKET] Message');
-        console.log(evt.data);
-        //var data = JSON.parse(evt.data);
+        var data = getJson(evt.data);
+        if (data) processData(data);
     };
+
 }
 
 $(init);

@@ -16,7 +16,7 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 ESP8266WebServer server(80);
 
 // -----------------------------------------------------------------------------
-// WebServer
+// WEBSERVER
 // -----------------------------------------------------------------------------
 
 String getContentType(String filename) {
@@ -36,12 +36,19 @@ String getContentType(String filename) {
     return "text/plain";
 }
 
+void handleReconnect() {
+    DEBUG_MSG("[WEBSERVER] Request: /reconnect\n");
+    wifiDisconnect();
+}
+
+void handleReset() {
+    DEBUG_MSG("[WEBSERVER] Request: /reset\n");
+    ESP.reset();
+}
+
 bool handleFileRead(String path) {
 
-    #if DEBUG
-        Serial.print(F("[WEBSERVER] Request: "));
-        Serial.println(path);
-    #endif
+    DEBUG_MSG("[WEBSERVER] Request: %s\n", (char *) path.c_str());
 
     if (path.endsWith("/")) path += "index.html";
     String contentType = getContentType(path);
@@ -60,66 +67,15 @@ bool handleFileRead(String path) {
 
 }
 
-void handleGet() {
+void handleSave() {
 
-    // Avoid web clients to be disconnected for X minutes when in AP mode
-    resetConnectionTimeout();
-
-    #if DEBUG
-        Serial.println("[WEBSERVER] Request: /get");
-    #endif
-
-    char buffer[64];
-    sprintf(buffer, "%s %s", APP_NAME, APP_VERSION);
-
-    StaticJsonBuffer<1024> jsonBuffer;
-    JsonObject& root = jsonBuffer.createObject();
-
-    root["app"] = buffer;
-    root["hostname"] = getSetting("hostname", HOSTNAME);
-    root["network"] = getNetwork();
-    root["ip"] = getIP();
-    root["mqttStatus"] = mqttConnected() ? "1" : "0";
-    root["mqttServer"] = getSetting("mqttServer", MQTT_SERVER);
-    root["mqttPort"] = getSetting("mqttPort", String(MQTT_PORT));
-    root["mqttUser"] = getSetting("mqttUser", MQTT_USER);
-    root["mqttPassword"] = getSetting("mqttPassword", MQTT_PASS);
-    root["ipTopic"] = getSetting("ipTopic", IP_TOPIC);
-    root["hbTopic"] = getSetting("hbTopic", HEARTBEAT_TOPIC);
-    root["defaultTopic"] = getSetting("defaultTopic", DEFAULT_TOPIC);
-
-    JsonArray& wifi = root.createNestedArray("wifi");
-    for (byte i=0; i<3; i++) {
-        JsonObject& network = wifi.createNestedObject();
-        network["ssid"] = getSetting("ssid" + String(i));
-        network["pass"] = getSetting("pass" + String(i));
-    }
-
-    JsonArray& mappings = root.createNestedArray("mapping");
-    byte mappingCount = getSetting("mappingCount", "0").toInt();
-    for (byte i=0; i<mappingCount; i++) {
-        JsonObject& mapping = mappings.createNestedObject();
-        mapping["nodeid"] = getSetting("nodeid" + String(i));
-        mapping["key"] = getSetting("key" + String(i));
-        mapping["topic"] = getSetting("topic" + String(i));
-    }
-
-    String output;
-    root.printTo(output);
-    server.send(200, "text/json", output);
-
-}
-
-void handlePost() {
-
-    #if DEBUG
-        Serial.println(F("[WEBSERVER] Request: /post"));
-    #endif
+    DEBUG_MSG("[WEBSERVER] Request: /save\n");
 
     bool dirty = false;
     bool dirtyMQTT = false;
-    unsigned int mappingCount = getSetting("mappingCount", "0").toInt();
+
     unsigned int network = 0;
+    unsigned int mappingCount = getSetting("mappingCount", "0").toInt();
     unsigned int mapping = 0;
 
     for (unsigned int i=0; i<server.args(); i++) {
@@ -154,6 +110,8 @@ void handlePost() {
 
     }
 
+    server.send(202, "text/json", "{}");
+
     // delete remaining mapping
     for (unsigned int i=mapping; i<mappingCount; i++) {
         delSetting("nodeid" + String(i));
@@ -165,17 +123,15 @@ void handlePost() {
     String value = String(mapping);
     setSetting("mappingCount", value);
 
-    if (dirty) saveSettings();
+    if (dirty) {
+        saveSettings();
+    }
 
-    server.send(202, "text/json", "{}");
+    // Reconfigure networks
+    wifiDisconnect();
 
-    // Disconnect from current WIFI network if it's not the first on the list
-    // wifiLoop will take care of the reconnection
-    if (getNetwork() != getSetting("ssid0")) {
-        wifiDisconnect();
-
-    // else check if we should reconigure MQTT connection
-    } else if (dirtyMQTT) {
+    // Check if we should reconigure MQTT connection
+    if (dirtyMQTT) {
         mqttDisconnect();
     }
 
@@ -183,17 +139,18 @@ void handlePost() {
 
 void webServerSetup() {
 
-    SPIFFS.begin();
+    //SPIFFS.begin();
 
-    // Configuration page
-    server.on("/get", HTTP_GET, handleGet);
-    server.on("/post", HTTP_POST, handlePost);
+    // Routes
+    server.on("/reconnect", HTTP_GET, handleReconnect);
+    server.on("/reset", HTTP_GET, handleReset);
+    server.on("/save", HTTP_POST, handleSave);
 
     // Anything else
     server.onNotFound([]() {
 
         // Hidden files
-        #ifndef DEBUG
+        #ifndef DEBUG_PORT
             if (server.uri().startsWith("/.")) {
                 server.send(403, "text/plain", "Forbidden");
                 return;

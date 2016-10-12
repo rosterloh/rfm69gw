@@ -29,18 +29,9 @@ void mqttDisconnect() {
 }
 
 void mqttSend(char * topic, char * message) {
-
     if (!mqtt.connected()) return;
-
-    #if DEBUG
-        Serial.print(F("[MQTT] Sending "));
-        Serial.print(topic);
-        Serial.print(F(" "));
-        Serial.println(message);
-    #endif
-
+    DEBUG_MSG("[MQTT] Sending %s %s\n", topic, message);
     mqtt.publish(topic, message, MQTT_RETAIN);
-
 }
 
 void mqttConnect() {
@@ -52,47 +43,34 @@ void mqttConnect() {
         String user = getSetting("mqttUser");
         String pass = getSetting("mqttPassword");
 
-        #if DEBUG
-            Serial.print(F("[MQTT] Connecting to broker at "));
-            Serial.print(host);
-        #endif
+        if (host.length() == 0) return;
 
+        DEBUG_MSG("[MQTT] Connecting to broker at %s", (char *) host.c_str());
         mqtt.setServer(host.c_str(), port.toInt());
 
         if ((user != "") & (pass != "")) {
-            #if DEBUG
-                Serial.print(F(" as user "));
-                Serial.print(user);
-                Serial.print(F(": "));
-            #endif
+            DEBUG_MSG(" as user %s: ", (char *) user.c_str());
             mqtt.connect(getSetting("hostname", HOSTNAME).c_str(), user.c_str(), pass.c_str());
         } else {
-            #if DEBUG
-                Serial.print(F(" anonymously: "));
-            #endif
+            DEBUG_MSG(" anonymously: ");
             mqtt.connect(getSetting("hostname", HOSTNAME).c_str());
         }
 
         if (mqtt.connected()) {
 
-            #if DEBUG
-                Serial.println(F("connected!"));
-            #endif
+            DEBUG_MSG("connected!\n");
 
             mqttStatus = true;
 
             // Send status via webSocket
-            //webSocketSend((char *) F("{'mqttStatus': true}"));
+            webSocketSend((char *) "{\"mqttStatus\": true}");
 
             // Say hello and report our IP
-            mqttSend((char *) getSetting("ipTopic", IP_TOPIC).c_str(), (char *) WiFi.localIP().toString().c_str());
+            mqttSend((char *) getSetting("ipTopic", MQTT_IP_TOPIC).c_str(), (char *) getIP().c_str());
 
         } else {
 
-            #if DEBUG
-                Serial.print(F("failed, rc="));
-                Serial.println(mqtt.state());
-            #endif
+            DEBUG_MSG("failed (rc=%d)\n", mqtt.state());
 
         }
     }
@@ -111,16 +89,17 @@ void mqttLoop() {
 
         if (!mqtt.connected()) {
 
-          if (mqttStatus) {
-              //webSocketSend((char *) F("{'mqttStatus': false}"));
-              mqttStatus = false;
-          }
+            if (mqttStatus) {
+                webSocketSend((char *) "{\"mqttStatus\": false}");
+                mqttStatus = false;
+            }
 
-        	unsigned long currPeriod = millis() / MQTT_RECONNECT_DELAY;
-        	if (currPeriod != lastPeriod) {
-        	    lastPeriod = currPeriod;
+          	unsigned long currPeriod = millis() / MQTT_RECONNECT_DELAY;
+          	if (currPeriod != lastPeriod) {
+          	    lastPeriod = currPeriod;
                 mqttConnect();
             }
+
         }
 
         if (mqtt.connected()) mqtt.loop();
