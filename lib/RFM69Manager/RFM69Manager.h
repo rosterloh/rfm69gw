@@ -67,11 +67,12 @@ class RFM69Manager: public RFM69_ATC {
             return send(_gatewayID, name, value, 0, requestACK);
         }
         bool loop();
+        void promiscuous(bool promiscuous);
         packet_t * getMessage() {
             return &_message;
         }
 
-    private:
+    protected:
 
         packet_t _message;
         TMessageCallback _callback = NULL;
@@ -81,6 +82,8 @@ class RFM69Manager: public RFM69_ATC {
             unsigned char _sendCount = 0;
         #endif
         unsigned int _ackCount = 0;
+
+        virtual void select();
 
 };
 

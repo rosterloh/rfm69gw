@@ -48,6 +48,11 @@ void settingsSetup() {
         e->response(Embedis::OK);
     });
 
+    Embedis::command( F("reset"), [](Embedis* e) {
+        e->response(Embedis::OK);
+        ESP.reset();
+    });
+
     DEBUG_MSG("[SETTINGS] Initialized\n");
 
 }

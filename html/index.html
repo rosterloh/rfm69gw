@@ -2,7 +2,7 @@
 <html>
     <head>
 
-        <title></title>
+        <title>RFM69GW 0.0.0</title>
         <meta charset="utf-8" />
         <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +11,8 @@
         <link rel="stylesheet" href="../node_modules/purecss/build/pure.css" />
         <link rel="stylesheet" href="side-menu.css" />
         <link rel="stylesheet" href="grids-responsive-min.css" />
+        <link rel="stylesheet" href="checkboxes.css" />
+        <link rel="stylesheet" href="../node_modules/datatables/media/css/jquery.dataTables.min.css" />
         <link rel="stylesheet" href="custom.css" />
         <!-- endbuild -->
 
@@ -27,7 +29,7 @@
             <div id="menu">
                 <div class="pure-menu">
 
-                    <span class="pure-menu-heading">RFM69 GW 0.1.0</span>
+                    <span class="pure-menu-heading">RFM69 GW 0.0.0</span>
 
                     <ul class="pure-menu-list">
 
@@ -49,6 +51,10 @@
 
                         <li class="pure-menu-item">
                             <a href="#" class="pure-menu-link" data="panel-mapping">MAPPING</a>
+                        </li>
+
+                        <li class="pure-menu-item">
+                            <a href="#" class="pure-menu-link" data="panel-messages">MESSAGES</a>
                         </li>
 
                     </ul>
@@ -112,37 +118,45 @@
                     </div>
                 </div>
 
-                <form id="formSave" class="pure-form pure-form-stacked" action="/" method="post">
+                <form id="formSave" class="pure-form" action="/" method="post">
 
                     <div class="panel" id="panel-general">
 
                         <div class="header">
                             <h1>GENERAL</h1>
-                            <h2>
-                                General configuration values
-                            </h2>
+                            <h2>General configuration values</h2>
                         </div>
 
                         <div class="page">
 
                             <fieldset>
 
-                                <div class="pure-u-1">
-                                    <label class="form-label" for="hostname">Hostname</label>
-                                    <div class="hint">This name will identify this device in your network (http://&lt;hostname&gt;.local).<br />For this setting to take effect you should restart the wifi interface clicking the "Reconnect" button.</div>
-                                    <input name="hostname" type="text" class="pure-u-1-4" tabindex="1">
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="hostname">Hostname</label>
+                                    <input name="hostname" class="pure-u-1 pure-u-md-3-4" type="text" tabindex="1" />
+                                    <div class="pure-u-0 pure-u-md-1-4">&nbsp;</div>
+                                    <div class="pure-u-1 pure-u-md-3-4 hint">This name will identify this device in your network (http://&lt;hostname&gt;.local). For this setting to take effect you should restart the wifi interface clicking the "Reconnect" button.</div>
                                 </div>
 
-                                <div class="pure-u-1">
-                                    <label class="form-label" for="hbTopic">Heartbeat Topic</label>
-                                    <div class="hint">This is the topic where heartbeat messages will be sent</div>
-                                    <input name="hbTopic" type="text" class="pure-u-23-24" value="" size="8" tabindex="10" placeholder="Leave blank to avoid sending this message">
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="adminPass">Admin password</label>
+                                    <input name="adminPass" class="pure-u-1 pure-u-md-3-4" type="text" tabindex="3" />
+                                    <div class="pure-u-0 pure-u-md-1-4">&nbsp;</div>
+                                    <div class="pure-u-1 pure-u-md-3-4 hint">The administrator password is used to access this web interface (user 'admin'), but also to connect to the device when in AP mode or to flash a new firmware over-the-air (OTA).</div>
                                 </div>
 
-                                <div class="pure-u-1">
-                                    <label class="form-label" for="ipTopic">IP Topic</label>
-                                    <div class="hint">Upon restart the device will report its IP to this topic</div>
-                                    <input name="ipTopic" type="text" class="pure-u-23-24" value="" size="8" tabindex="11" placeholder="Leave blank to avoid sending this message">
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="hbTopic">Heartbeat Topic</label>
+                                    <input name="hbTopic" class="pure-u-1 pure-u-md-3-4" type="text" tabindex="3" />
+                                    <div class="pure-u-0 pure-u-md-1-4">&nbsp;</div>
+                                    <div class="pure-u-1 pure-u-md-3-4 hint">This is the topic where heartbeat messages will be sent.</div>
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="ipTopic">IP Topic</label>
+                                    <input name="ipTopic" class="pure-u-1 pure-u-md-3-4" type="text" tabindex="3" />
+                                    <div class="pure-u-0 pure-u-md-1-4">&nbsp;</div>
+                                    <div class="pure-u-1 pure-u-md-3-4 hint">Upon restart the device will report its IP to this topic.</div>
                                 </div>
 
                             </fieldset>
@@ -166,11 +180,11 @@
                                 <div class="pure-g">
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="ssid">SSID</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="21" name="ssid">
+                                        <input type="text" class="pure-u-23-24" tabindex="10" name="ssid" />
                                     </div>
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="pass">Password</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="22" name="pass">
+                                        <input type="text" class="pure-u-23-24" tabindex="11" name="pass" />
                                     </div>
                                 </div>
 
@@ -179,11 +193,11 @@
                                 <div class="pure-g">
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="ssid">SSID</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="23" name="ssid">
+                                        <input type="text" class="pure-u-23-24" tabindex="12" name="ssid" />
                                     </div>
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="pass">Password</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="24" name="pass">
+                                        <input type="text" class="pure-u-23-24" tabindex="13" name="pass" />
                                     </div>
                                 </div>
 
@@ -192,11 +206,11 @@
                                 <div class="pure-g">
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="ssid">SSID</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="25" name="ssid">
+                                        <input type="text" class="pure-u-23-24" tabindex="14" name="ssid" />
                                     </div>
                                     <div class="pure-u-1 pure-u-md-1-2">
                                         <label for="pass">Password</label>
-                                        <input type="text" class="pure-u-23-24" tabindex="26" name="pass">
+                                        <input type="text" class="pure-u-23-24" tabindex="15" name="pass" />
                                     </div>
                                 </div>
 
@@ -216,28 +230,24 @@
                             <fieldset>
 
                                 <div class="pure-g">
-
-                                    <div class="pure-u-1">
-                                        <label class="form-label" for="mqttServer">MQTT Server</label>
-                                        <input name="mqttServer" type="text" class="pure-u-23-24" value="" size="8" tabindex="31" placeholder="MQTT Server" required>
-                                    </div>
-
-                                    <div class="pure-u-1">
-                                        <label class="form-label" for="mqttPort">MQTT Port</label>
-                                        <input name="mqttPort" type="text" class="pure-u-23-24" value="" size="8" tabindex="32" placeholder="1883" required>
-                                    </div>
-
-                                    <div class="pure-u-1">
-                                        <label class="form-label" for="mqttUser">MQTT User</label>
-                                        <input name="mqttUser" type="text" class="pure-u-23-24" value="" size="8" tabindex="33" placeholder="Leave blank if no user/pass">
-                                    </div>
-
-                                    <div class="pure-u-1">
-                                        <label class="form-label" for="mqttPassword">MQTT Password</label>
-                                        <input name="mqttPassword" type="text" class="pure-u-23-24" value="" size="8" tabindex="34" placeholder="Leave blank if no user/pass">
-                                    </div>
-
+                                    <label class="pure-u-1 pure-u-md-1-4" for="mqttServer">MQTT Server</label>
+                                    <input class="pure-u-1 pure-u-md-3-4" name="mqttServer" type="text" size="20" tabindex="10" placeholder="MQTT Server" />
                                 </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="mqttPort">MQTT Port</label>
+                                    <input class="pure-u-1 pure-u-md-3-4" name="mqttPort" type="text" size="6" tabindex="11" placeholder="1883" />
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="mqttUser">MQTT User</label>
+                                    <input class="pure-u-1 pure-u-md-3-4" name="mqttUser" type="text" size="20" tabindex="12" placeholder="Leave blank if no user/pass" />
+                                </div>
+
+                                <div class="pure-g">
+                                    <label class="pure-u-1 pure-u-md-1-4" for="mqttPassword">MQTT Password</label>
+                                    <input class="pure-u-1 pure-u-md-3-4" name="mqttPassword" type="text" size="20" tabindex="13" placeholder="Leave blank if no user/pass" />
+                                 </div>
 
                             </fieldset>
                         </div>
@@ -274,6 +284,45 @@
                         </div>
                     </div>
 
+                    <div class="panel" id="panel-messages">
+
+                        <div class="header">
+                            <h1>MESSAGES</h1>
+                            <h2>
+                                Messages being received. Previous messages are not displayed.
+                                You have to keep the page open in order to keep receiving them.
+                                You can filter/unfilter by clicking on the values.
+                                Left click on a value to show only rows that match that value, middle click to show all rows but those matching that value.
+                                Filtered colums have red headers.
+                            </h2>
+                        </div>
+
+                        <div class="page">
+
+                            <table id="messages" class="display" cellspacing="0" width="100%">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>SenderID</th>
+                                        <th>PacketID</th>
+                                        <th>TargetID</th>
+                                        <th>Name</th>
+                                        <th>Value</th>
+                                        <th>RSSI</th>
+                                        <th>Duplicates</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+
+                            <button class="pure-button button-clear-filters">Clear filters</button>
+                            <button class="pure-button button-clear-counts">Clear counts</button>
+
+                        </div>
+                    </div>
+
                 </form>
 
                 <div id="template">
@@ -293,6 +342,8 @@
 
     <!-- build:js script.js -->
     <script src="../node_modules/jquery/dist/jquery.js"></script>
+    <script src="../node_modules/datatables/media/js/jquery.dataTables.min.js"></script>
+    <script src="checkboxes.js"></script>
     <script src="custom.js"></script>
     <!-- endbuild -->
 

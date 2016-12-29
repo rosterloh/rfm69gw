@@ -39,25 +39,55 @@ bool RFM69Manager::initialize(uint8_t frequency, uint8_t nodeID, uint8_t network
     if (_isRFM69HW) setHighPower();
 
     #if RADIO_DEBUG
+        char buff[50];
+        sprintf(buff, "[RADIO] Working at %d Mhz", frequency == RF69_433MHZ ? 433 : frequency == RF69_868MHZ ? 868 : 915);
+        Serial.println(buff);
         Serial.print(F("[RADIO] Node: "));
         Serial.println(nodeID);
         Serial.print(F("[RADIO] Network: "));
         Serial.println(networkID);
         if (gatewayID == 0) {
-            Serial.println("[RADIO] This node is a gateway.");
+            Serial.println("[RADIO] This node is a gateway");
         } else {
             Serial.print(F("[RADIO] Gateway: "));
             Serial.println(gatewayID);
         }
-
-        char buff[50];
-        sprintf(buff, "[RADIO] Working at %d Mhz...", frequency == RF69_433MHZ ? 433 : frequency == RF69_868MHZ ? 868 : 915);
-        Serial.println(buff);
         Serial.println(F("[RADIO] Auto Transmission Control (ATC) enabled"));
+
     #endif
 
     return ret;
 
+}
+
+void RFM69Manager::promiscuous(bool promiscuous) {
+    RFM69_ATC::promiscuous(promiscuous);
+    #if RADIO_DEBUG
+        if (_promiscuousMode) {
+            Serial.println(F("[RADIO] Promiscuous mode ON"));
+        } else {
+            Serial.println(F("[RADIO] Promiscuous mode OFF"));
+        }
+    #endif
+}
+
+// overriding select the RFM69 transceiver (save SPI settings, set CS low)
+void RFM69Manager::select() {
+    noInterrupts();
+    #if defined (SPCR) && defined (SPSR)
+        // save current SPI settings
+        _SPCR = SPCR;
+        _SPSR = SPSR;
+    #endif
+    // set RFM69 SPI settings
+    SPI.setDataMode(SPI_MODE0);
+    SPI.setBitOrder(MSBFIRST);
+    #if defined(ARDUINO_ARCH_ESP8266)
+        SPI.setClockDivider(SPI_CLOCK_DIV2); // speeding it up for the ESP8266
+    #else
+        SPI.setClockDivider(SPI_CLOCK_DIV4);
+    #endif
+    digitalWrite(_slaveSelectPin, LOW);
 }
 
 void RFM69Manager::onMessage(TMessageCallback fn) {

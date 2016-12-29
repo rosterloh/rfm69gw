@@ -4,7 +4,7 @@ Thanks to amazing project from [Xose Pérez](https://bitbucket.org/xoseperez/rfm
 
 ## Skip changes to private settings
 ```bash
-$ git update-index --assume-unchanged src/defaults.h
+$ git update-index --assume-unchanged src/config/general.h
 ```
 
 **UPDATE**: The RFM69 library works a lot better over ESP8266 changing the SPI clock divider to 2. You will have to modify the source code for RFM69.cpp file with this patch:

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// SET BY PLATFORMIO
+// GENERAL
 //------------------------------------------------------------------------------
 
 //#define DEBUG_PORT              Serial
@@ -31,17 +31,26 @@
 
 #define WIFI_RECONNECT_INTERVAL 300000
 #define WIFI_MAX_NETWORKS       3
-#define AP_PASS                 "fibonacci"
-#define OTA_PASS                "fibonacci"
+#define ADMIN_PASS              "fibonacci"
+#define HTTP_USERNAME           "admin"
+#define WS_BUFFER_SIZE          5
+#define WS_TIMEOUT              1800000
+
+// -----------------------------------------------------------------------------
+// OTA
+// -----------------------------------------------------------------------------
+
 #define OTA_PORT                8266
 
 // -----------------------------------------------------------------------------
 // MQTT
 // -----------------------------------------------------------------------------
 
-#define MQTT_SERVER             "192.168.1.100"
+#define MQTT_SERVER             "192.168.1.166"
 #define MQTT_PORT               1883
 #define MQTT_RETAIN             true
+#define MQTT_QOS                0
+#define MQTT_KEEPALIVE          30
 #define MQTT_RECONNECT_DELAY    10000
 #define MQTT_USER               ""
 #define MQTT_PASS               ""

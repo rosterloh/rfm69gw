@@ -23,18 +23,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-#include "version.h"
-#include "defaults.h"
-#include "debug.h"
-#include <WebSockets.h>
-#include "FS.h"
-#include <NtpClientLib.h>
-#include "RFM69Manager.h"
+#include <Arduino.h>
+#include "config/all.h"
 
 // -----------------------------------------------------------------------------
 // Prototypes
 // -----------------------------------------------------------------------------
 
+#include <NtpClientLib.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncMqttClient.h>
+#include "RFM69Manager.h"
+#include "FS.h"
 String getSetting(const String& key, String defaultValue = "");
 struct _node_t {
   unsigned long count = 0;
@@ -46,8 +46,14 @@ struct _node_t {
 _node_t nodeInfo[255];
 
 // -----------------------------------------------------------------------------
-// Common methods
+// METHODS
 // -----------------------------------------------------------------------------
+
+String getIdentifier() {
+    char identifier[20];
+    sprintf(identifier, "%s_%06X", DEVICE, ESP.getChipId());
+    return String(identifier);
+}
 
 void ledOn() {
     digitalWrite(LED_PIN, LOW);
@@ -63,6 +69,13 @@ void blink(unsigned int delayms, unsigned char times = 1) {
         ledOn();
         delay(delayms);
         ledOff();
+    }
+}
+
+void clearCounts() {
+    for(unsigned int i=0; i<255; i++) {
+        nodeInfo[i].duplicates = 0;
+        nodeInfo[i].missing = 0;
     }
 }
 
@@ -84,18 +97,20 @@ void processMessage(packet_t * data) {
     // Detect duplicates and missing packets
     // packetID==0 means device is not sending packetID info
     if (data->packetID > 0) {
+        if (nodeInfo[data->senderID].count > 0) {
 
-      unsigned char gap = data->packetID - nodeInfo[data->senderID].lastPacketID;
+            unsigned char gap = data->packetID - nodeInfo[data->senderID].lastPacketID;
 
-        if (gap == 0) {
-            DEBUG_MSG(" DUPLICATED");
-            nodeInfo[data->senderID].duplicates = nodeInfo[data->senderID].duplicates + 1;
-            return;
-        }
+            if (gap == 0) {
+                DEBUG_MSG(" DUPLICATED");
+                nodeInfo[data->senderID].duplicates = nodeInfo[data->senderID].duplicates + 1;
+                return;
+            }
 
-        if ((gap > 1) && (data->packetID > 1)) {
-            DEBUG_MSG(" MISSING PACKETS!!");
-            nodeInfo[data->senderID].missing = nodeInfo[data->senderID].missing + gap - 1;
+            if ((gap > 1) && (data->packetID > 1)) {
+                DEBUG_MSG(" MISSING PACKETS!!");
+                nodeInfo[data->senderID].missing = nodeInfo[data->senderID].missing + gap - 1;
+            }
         }
 
     }
@@ -109,10 +124,10 @@ void processMessage(packet_t * data) {
     char buffer[60];
     sprintf_P(
         buffer,
-        PSTR("{'senderID': %u, 'targetID': %u, 'packetID': %u, 'name': '%s', 'value': '%s', 'rssi': %d, 'duplicates': %d, 'missing': %d}"),
+        PSTR("{\"packet\": {\"senderID\": %u, \"targetID\": %u, \"packetID\": %u, \"name\": \"%s\", \"value\": \"%s\", \"rssi\": %d, \"duplicates\": %d, \"missing\": %d}}"),
         data->senderID, data->targetID, data->packetID, data->name, data->value, data->rssi,
         nodeInfo[data->senderID].duplicates , nodeInfo[data->senderID].missing);
-    webSocketSend(buffer);
+    wsSend(buffer);
 
     // Try to find a matching mapping
     bool found = false;
@@ -192,27 +207,36 @@ void welcome() {
 // -----------------------------------------------------------------------------
 
 void setup() {
+
     hardwareSetup();
+
     welcome();
+
     settingsSetup();
-    otaSetup();
+    if (getSetting("hostname").length() == 0) {
+        setSetting("hostname", String() + getIdentifier());
+        saveSettings();
+    }
+
     wifiSetup();
+    otaSetup();
     mqttSetup();
     radioSetup();
-    webServerSetup();
-    webSocketSetup();
+    webSetup();
     ntpSetup();
+
 }
 
 void loop() {
+
     hardwareLoop();
     settingsLoop();
-    otaLoop();
     wifiLoop();
+    otaLoop();
     mqttLoop();
     radioLoop();
-    webServerLoop();
-    webSocketLoop();
     ntpLoop();
-    delay(5);
+
+    yield();
+
 }

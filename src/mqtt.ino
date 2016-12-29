@@ -11,10 +11,9 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
+#include <AsyncMqttClient.h>
 
-WiFiClient client;
-PubSubClient mqtt(client);
-boolean mqttStatus = false;
+AsyncMqttClient mqtt;
 
 // -----------------------------------------------------------------------------
 // MQTT
@@ -31,7 +30,26 @@ void mqttDisconnect() {
 void mqttSend(char * topic, char * message) {
     if (!mqtt.connected()) return;
     DEBUG_MSG("[MQTT] Sending %s %s\n", topic, message);
-    mqtt.publish(topic, message, MQTT_RETAIN);
+    mqtt.publish(topic, MQTT_QOS, MQTT_RETAIN, message);
+}
+
+void _mqttOnConnect(bool sessionPresent) {
+
+    DEBUG_MSG("[MQTT] Connected!\n");
+
+    // Send status via webSocket
+    wsSend((char *) "{\"mqttStatus\": true}");
+
+    // Say hello and report our IP and VERSION
+    mqttSend((char *) MQTT_IP_TOPIC, (char *) getIP().c_str());
+
+}
+
+void _mqttOnDisconnect(AsyncMqttClientDisconnectReason reason) {
+
+    // Send status via webSocket
+    wsSend((char *) "{\"mqttStatus\": false}");
+
 }
 
 void mqttConnect() {
@@ -46,39 +64,30 @@ void mqttConnect() {
         if (host.length() == 0) return;
 
         DEBUG_MSG("[MQTT] Connecting to broker at %s", (char *) host.c_str());
+
         mqtt.setServer(host.c_str(), port.toInt());
+        mqtt
+            .setKeepAlive(MQTT_KEEPALIVE)
+            .setCleanSession(false)
+            //.setWill("topic/online", 2, true, "no")
+            .setClientId(getSetting("hostname", HOSTNAME).c_str());
 
         if ((user != "") & (pass != "")) {
-            DEBUG_MSG(" as user %s: ", (char *) user.c_str());
-            mqtt.connect(getSetting("hostname", HOSTNAME).c_str(), user.c_str(), pass.c_str());
+            DEBUG_MSG(" as user %s.\n", (char *) user.c_str());
+            mqtt.setCredentials(user.c_str(), pass.c_str());
         } else {
-            DEBUG_MSG(" anonymously: ");
-            mqtt.connect(getSetting("hostname", HOSTNAME).c_str());
+            DEBUG_MSG(" anonymously\n");
         }
 
-        if (mqtt.connected()) {
+        mqtt.connect();
 
-            DEBUG_MSG("connected!\n");
-
-            mqttStatus = true;
-
-            // Send status via webSocket
-            webSocketSend((char *) "{\"mqttStatus\": true}");
-
-            // Say hello and report our IP
-            mqttSend((char *) getSetting("ipTopic", MQTT_IP_TOPIC).c_str(), (char *) getIP().c_str());
-
-        } else {
-
-            DEBUG_MSG("failed (rc=%d)\n", mqtt.state());
-
-        }
     }
 
 }
 
 void mqttSetup() {
-    //mqtt.setCallback(mqttCallback);
+    mqtt.onConnect(_mqttOnConnect);
+    mqtt.onDisconnect(_mqttOnDisconnect);
 }
 
 void mqttLoop() {
@@ -89,12 +98,7 @@ void mqttLoop() {
 
         if (!mqtt.connected()) {
 
-            if (mqttStatus) {
-                webSocketSend((char *) "{\"mqttStatus\": false}");
-                mqttStatus = false;
-            }
-
-          	unsigned long currPeriod = millis() / MQTT_RECONNECT_DELAY;
+            unsigned long currPeriod = millis() / MQTT_RECONNECT_DELAY;
           	if (currPeriod != lastPeriod) {
           	    lastPeriod = currPeriod;
                 mqttConnect();
@@ -102,8 +106,6 @@ void mqttLoop() {
 
         }
 
-        if (mqtt.connected()) mqtt.loop();
-        
     }
 
 }
