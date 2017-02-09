@@ -6,7 +6,7 @@ MAIN MODULE
 ESP8266 to RFM69 Gateway
 Gateway code with suport for ESP8266-based boards
 
-Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
+Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +35,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <AsyncMqttClient.h>
 #include "RFM69Manager.h"
 #include "FS.h"
-String getSetting(const String& key, String defaultValue = "");
+template<typename T> String getSetting(const String& key, T defaultValue);
+template<typename T> bool setSetting(const String& key, T value);
 struct _node_t {
   unsigned long count = 0;
   unsigned long missing = 0;

@@ -94,6 +94,10 @@ void RFM69Manager::onMessage(TMessageCallback fn) {
     _callback = fn;
 }
 
+void RFM69Manager::separator(char sep) {
+    _separator = sep;
+}
+
 bool RFM69Manager::loop() {
 
     boolean ret = false;
@@ -116,16 +120,18 @@ bool RFM69Manager::loop() {
 
         uint8_t parts = 1;
         for (uint8_t i=0; i<length; i++) {
-            if (buffer[i] == ':') ++parts;
+            if (buffer[i] == _separator) ++parts;
         }
 
         if (parts > 1) {
 
+            char sep[2] = {_separator, 0};
+
             uint8_t packetID = 0;
-            char * name = strtok(buffer, ":");
-            char * value = strtok(NULL, ":");
+            char * name = strtok(buffer, sep);
+            char * value = strtok(NULL, sep);
             if (parts > 2) {
-                char * packet = strtok(NULL, ":");
+                char * packet = strtok(NULL, sep);
                 packetID = atoi(packet);
             }
 
@@ -152,12 +158,12 @@ bool RFM69Manager::loop() {
 
 bool RFM69Manager::send(uint8_t destinationID, char * name, char * value, uint8_t retries, bool requestACK) {
 
-    char message[30];
+    char message[RF69_MAX_DATA_LEN];
     #if SEND_PACKET_ID
         if (++_sendCount == 0) _sendCount = 1;
-        sprintf(message, "%s:%s:%d", name, value, _sendCount);
+        snprintf(message, RF69_MAX_DATA_LEN-1, "%s%c%s%c%d", name, _separator, value, _separator, _sendCount);
     #else
-        sprintf(message, "%s:%s", name, value);
+        snprintf(message, RF69_MAX_DATA_LEN-1, "%s%c%s", name, _separator, value);
     #endif
 
     #if RADIO_DEBUG

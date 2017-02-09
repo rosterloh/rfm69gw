@@ -1,11 +1,8 @@
 /*
 
-ESP69GW
 RFM69 MODULE
 
-ESP8266 to RFM69 Gateway
-
-Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
+Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 

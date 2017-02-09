@@ -52,6 +52,8 @@
 #define MQTT_QOS                0
 #define MQTT_KEEPALIVE          30
 #define MQTT_RECONNECT_DELAY    10000
+#define MQTT_TRY_INTERVAL       30000
+#define MQTT_MAX_TRIES          5
 #define MQTT_USER               ""
 #define MQTT_PASS               ""
 #define MQTT_IP_TOPIC           "/raw/rfm69gw/ip"

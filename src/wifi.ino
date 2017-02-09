@@ -1,11 +1,8 @@
 /*
 
-ESP69GW
 WIFI MODULE
 
-ESP8266 to RFM69 Gateway
-
-Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
+Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
@@ -132,21 +129,19 @@ void wifiSetup() {
 
         #endif
 
-        // Disconnect from MQTT server if no WIFI
-        if (code != MESSAGE_CONNECTED) {
-            if (mqttConnected()) mqttDisconnect();
-        }
-
         // Configure mDNS
 	      if (code == MESSAGE_CONNECTED) {
-
             if (MDNS.begin((char *) WiFi.hostname().c_str())) {
                 MDNS.addService("http", "tcp", 80);
                 DEBUG_MSG("[MDNS] OK\n");
             } else {
                 DEBUG_MSG("[MDNS] FAIL\n");
             }
+        }
 
+        // NTP connection reset
+        if (code == MESSAGE_CONNECTED) {
+            ntpConnect();
         }
 
     });

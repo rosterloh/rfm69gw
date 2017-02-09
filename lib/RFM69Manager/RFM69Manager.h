@@ -37,6 +37,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define REQUESTACK          1
 #define RADIO_DEBUG         1
 #define SEND_PACKET_ID      1
+#define PACKET_SEPARATOR    ':'
 
 typedef struct {
     unsigned long messageID;
@@ -59,6 +60,7 @@ class RFM69Manager: public RFM69_ATC {
 
         bool initialize(uint8_t frequency, uint8_t nodeID, uint8_t networkID, const char* key, uint8_t gatewayID = 0, int16_t targetRSSI = -70);
         void onMessage(TMessageCallback fn);
+        void separator(char sep);
         bool send(uint8_t destinationID, char * name, char * value, uint8_t retries = RETRIES, bool requestACK = REQUESTACK);
         bool send(char * name, char * value, uint8_t retries = RETRIES) {
             return send(_gatewayID, name, value, retries, false);
@@ -82,6 +84,7 @@ class RFM69Manager: public RFM69_ATC {
             unsigned char _sendCount = 0;
         #endif
         unsigned int _ackCount = 0;
+        char _separator = PACKET_SEPARATOR;
 
         virtual void select();
 

@@ -1,11 +1,8 @@
 /*
 
-ESP69GW
 MQTT MODULE
 
-ESP8266 to RFM69 Gateway
-
-Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
+Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
@@ -55,6 +52,22 @@ void _mqttOnDisconnect(AsyncMqttClientDisconnectReason reason) {
 void mqttConnect() {
 
     if (!mqtt.connected()) {
+
+        // Last option: reconnect to wifi after MQTT_MAX_TRIES attemps in a row
+        static unsigned int tries = 0;
+        static unsigned long last_try = millis();
+        if (millis() - last_try < MQTT_TRY_INTERVAL) {
+            if (++tries >= MQTT_MAX_TRIES) {
+                wifiDisconnect();
+                tries = 0;
+                return;
+            }
+        } else {
+            tries = 0;
+        }
+        last_try = millis();
+
+		    mqtt.disconnect();
 
         String host = getSetting("mqttServer", MQTT_SERVER);
         String port = getSetting("mqttPort", String(MQTT_PORT));

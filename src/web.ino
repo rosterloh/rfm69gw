@@ -1,11 +1,8 @@
 /*
 
-ESP69GW
 WEBSERVER MODULE
 
-ESP8266 to RFM69 Gateway
-
-Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
+Copyright (C) 2016-2017 by Xose Pérez <xose dot perez at gmail dot com>
 
 */
 
@@ -16,9 +13,11 @@ Copyright (C) 2016 by Xose Pérez <xose dot perez at gmail dot com>
 #include <Hash.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
+#include <Ticker.h>
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+Ticker deferred;
 
 typedef struct {
     IPAddress ip;
@@ -31,12 +30,12 @@ ws_ticket_t _ticket[WS_BUFFER_SIZE];
 // WEBSOCKETS
 // -----------------------------------------------------------------------------
 
-bool wsSend(char * payload) {
+bool wsSend(const char * payload) {
     //DEBUG_MSG("[WEBSOCKET] Broadcasting '%s'\n", payload);
     ws.textAll(payload);
 }
 
-bool wsSend(uint32_t client_id, char * payload) {
+bool wsSend(uint32_t client_id, const char * payload) {
     //DEBUG_MSG("[WEBSOCKET] Sending '%s' to #%ld\n", payload, client_id);
     ws.text(client_id, payload);
 }
@@ -59,7 +58,12 @@ void _wsParse(uint32_t client_id, uint8_t * payload, size_t length) {
         DEBUG_MSG("[WEBSOCKET] Requested action: %s\n", action.c_str());
 
         if (action.equals("reset")) ESP.reset();
-        if (action.equals("reconnect")) wifiDisconnect();
+        if (action.equals("reconnect")) {
+
+            // Let the HTTP request return and disconnect after 100ms
+            deferred.once_ms(100, wifiDisconnect);
+
+        }
         if (action.equals("clear-counts")) clearCounts();
 
     };
@@ -219,6 +223,8 @@ bool _wsAuth(AsyncWebSocketClient * client) {
 
 void _wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
 
+    static uint8_t * message;
+
     // Authorize
     #ifndef NOWSAUTH
         if (!_wsAuth(client)) return;
@@ -235,7 +241,27 @@ void _wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTy
     } else if(type == WS_EVT_PONG) {
         DEBUG_MSG("[WEBSOCKET] #%u pong(%u): %s\n", client->id(), len, len ? (char*) data : "");
     } else if(type == WS_EVT_DATA) {
-        _wsParse(client->id(), data, len);
+
+      AwsFrameInfo * info = (AwsFrameInfo*)arg;
+
+        // First packet
+        if (info->index == 0) {
+            //Serial.printf("Before malloc: %d\n", ESP.getFreeHeap());
+            message = (uint8_t*) malloc(info->len);
+            //Serial.printf("After malloc: %d\n", ESP.getFreeHeap());
+        }
+
+        // Store data
+        memcpy(message + info->index, data, len);
+
+        // Last packet
+        if (info->index + len == info->len) {
+            _wsParse(client->id(), message, info->len);
+            //Serial.printf("Before free: %d\n", ESP.getFreeHeap());
+            free(message);
+            //Serial.printf("After free: %d\n", ESP.getFreeHeap());
+        }
+
     }
 
 }
